@@ -1,22 +1,29 @@
+
+// panoroutef.js
+// Copyright (c) 2015 w4ller
+// http://github.com/w4ller/panoroutefinder
+
+
 var PANOROUTEF = PANOROUTEF || {};
 
-PANOROUTEF.LapseLoader = function (parameters) {
+PANOROUTEF.Loader = function (parameters) {
 
 
 
     var _parameters = parameters || {},
-        _map,
         _startpath,
         _endpath,
         _pathlength,
         _latlengPath = [],
         _latlengRoute = [],
         latlengFixed = [],
+        _polilyne = [],
         panoramaId = [],
         _latlengprogress,
         _frameprogress,
         _mode,
         _depth,
+        _distancekm,
         _directionsDisplay = new google.maps.DirectionsRenderer({ draggable: true }),
         _directionsService = new google.maps.DirectionsService(),
          sv = new google.maps.StreetViewService(),
@@ -27,8 +34,7 @@ PANOROUTEF.LapseLoader = function (parameters) {
 
 
 
-
-
+    //Invisible Div Bottom Page
     try{
         var mapdiv = document.createElement( 'div' );
         mapdiv.id = 'slapsemap';
@@ -45,16 +51,6 @@ PANOROUTEF.LapseLoader = function (parameters) {
             disableDefaultUI: true,
             center: new google.maps.LatLng(0.0, 0.0)
         };
-
-
-
-
-
-
-
-
-
-
     }
     catch(error){
 
@@ -63,18 +59,29 @@ PANOROUTEF.LapseLoader = function (parameters) {
     }
 
 
-    this.setPath = function (start,end, mode, depth) {
+    //Parameters:
+    //start: lat leng start route
+    //end: lat leng end route
+    //mode: route mode
+    //depth: how many point on root we check for find panoramic:
+    //  full - every 4 meters
+    //  half - every step on direction route
+    //  min -  every five step on direction route
 
+    //Polyline: array of lat leng
 
+    this.setPath = function (start,end, mode, depth, polilyne) {
 
-
-       _startpath = start;
-       _endpath = end;
+        _startpath = start;
+        _endpath = end;
+        _polilyne = polilyne;
         _latlengPath = [];
         latlengFixed = [];
+        _latlengRoute = [];
         _frameprogress = 0;
         _latlengprogress = 0;
         _depth = depth;
+        _distancekm = 0;
 
 
         _mode = mode;
@@ -82,156 +89,312 @@ PANOROUTEF.LapseLoader = function (parameters) {
 
         var self = this;
 
+       if (_mode != 'POLYLINE') {
 
-        _map = new google.maps.Map(document.getElementById('slapsemap'), mapOptions);
+           _map = new google.maps.Map(document.getElementById('slapsemap'), mapOptions);
 
 
-        _directionsDisplay.setMap(_map);
+           _directionsDisplay.setMap(_map);
 
-        var request = {
-            origin: _startpath,
-            destination: _endpath,
-           travelMode: google.maps.TravelMode[_mode]
-        };
+           var request = {
+               origin: _startpath,
+               destination: _endpath,
+               travelMode: google.maps.TravelMode[_mode]
+           };
 
-        _directionsService.route(request, function(response, status) {
-            if (status == google.maps.DirectionsStatus.OK) {
-                _directionsDisplay.setDirections(response);
+           _directionsService.route(request, function (response, status) {
+               if (status == google.maps.DirectionsStatus.OK) {
+                   _directionsDisplay.setDirections(response);
 
 
-                var rleg = _directionsDisplay.directions.routes[0].legs[0];
-                var path = _directionsDisplay.directions.routes[0].overview_path;
-                var counter = 0;
-                var counterRoute = 0;
+                   var rleg = _directionsDisplay.directions.routes[0].legs[0];
+                   var path = _directionsDisplay.directions.routes[0].overview_path;
+                   var counter = 0;
+                   var counterRoute = 0;
 
 
-                var steplength = _directionsDisplay.directions.routes[0].legs[0].steps.length;
-                var lastdistance = _directionsDisplay.directions.routes[0].legs[0].steps[0].path[0];
+                   var steplength = _directionsDisplay.directions.routes[0].legs[0].steps.length;
+                   var lastdistance = _directionsDisplay.directions.routes[0].legs[0].steps[0].path[0];
+                   _distancekm = _directionsDisplay.directions.routes[0].legs[0].distance.text;
 
 
-                for (var i = 0; i <= steplength - 1; i++) {
+                   for (var i = 0; i <= steplength - 1; i++) {
 
 
-                    var pathlength = _directionsDisplay.directions.routes[0].legs[0].steps[i].path.length;
-                    for (var n = 0; n <= pathlength - 2; n++) {
+                       var pathlength = _directionsDisplay.directions.routes[0].legs[0].steps[i].path.length;
+                       for (var n = 0; n <= pathlength - 2; n++) {
 
-                        _latlengRoute[counterRoute] = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
-                        counterRoute++;
+                           _latlengRoute[counterRoute] = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
+                           counterRoute++;
 
-                        if (n < pathlength - 1) var distancex = distance(lastdistance, _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
+                           if (n < pathlength - 1) var distancex = distance(lastdistance, _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
 
 
-                        if (distancex >= 10) {
+                           if (distancex >= 10) {
 
-                            _latlengPath[counter] = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
-                            counter++;
-                            lastdistance = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
+                               _latlengPath[counter] = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
+                               counter++;
+                               lastdistance = _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n];
 
-                            var step = 4;
-                            var dist = distance(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
-                            var div = dist / step;
-                            var bearing = self.getBearing(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
+                               var step = 4;
+                               var dist = distance(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
+                               var div = dist / step;
+                               var bearing = self.getBearing(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], _directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n + 1]);
 
-                            for (x = 0; x <= div; x++) {
+                               for (x = 0; x <= div; x++) {
 
-                                _latlengPath[counter] = self.destinationPoint(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], bearing, (step * x));
-                                counter++;
-                            }
+                                   _latlengPath[counter] = self.destinationPoint(_directionsDisplay.directions.routes[0].legs[0].steps[i].lat_lngs[n], bearing, (step * x));
+                                   counter++;
+                               }
 
-                        }
+                           }
 
 
-                       
+                       }
 
 
-                    }
+                   }
+               }
 
 
-                }
+               if (_depth == "FULL") {
 
 
-             
+                   n = 0;
+                   _frameprogress = 0;
 
-                if (_depth == "FULL") {
+                   fixinterval = setInterval(function () {
 
+                       if (n <= _latlengPath.length - 1) {
+                           self.fixingRoute(_latlengPath[n]);
 
-                n = 0;
-                _frameprogress = 0;
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengPath.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n++;
 
-                fixinterval = setInterval(function () {
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
 
-                    if (n <= _latlengPath.length - 1) {
-                        self.fixingRoute(_latlengPath[n]);
 
-                        _latlengprogress = Math.round(((n + 1) * 100) / _latlengPath.length);
-                        //  $('#debug').append('<p>Fixing route: '+ n);
-                        n++;
+                       }
 
-                        if (self.onProgress) {
-                            self.onProgress();
-                        }
 
+                       else {
+                           clearInterval(fixinterval);
 
-                    }
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
 
+                   }, 100);
 
-                    else {
-                        clearInterval(fixinterval);
 
-                        if (self.onRendered) {
-                            self.onRendered();
-                        }
-                    }
+               }
+               else if (_depth == "HALF")
 
-                }, 100);
+               {
 
+                   n = 0;
+                   _frameprogress = 0;
+                   fixinterval = setInterval(function () {
 
-            }
-                else if (_depth == "HALF")
+                       if (n <= _latlengRoute.length - 1) {
+                           self.fixingRoute(_latlengRoute[n]);
 
-                {
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengRoute.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n++;
 
-                    n = 0;
-                    _frameprogress = 0;
-                    fixinterval = setInterval(function () {
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
 
-                        if (n <= _latlengRoute.length - 1) {
-                            self.fixingRoute(_latlengRoute[n]);
 
-                            _latlengprogress = Math.round(((n + 1) * 100) / _latlengRoute.length);
-                            //  $('#debug').append('<p>Fixing route: '+ n);
-                            n++;
+                       }
 
-                            if (self.onProgress) {
-                                self.onProgress();
-                            }
 
+                       else {
+                           clearInterval(fixinterval);
 
-                        }
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
 
+                   }, 100);
 
-                        else {
-                            clearInterval(fixinterval);
 
-                            if (self.onRendered) {
-                                self.onRendered();
-                            }
-                        }
+               }
+               else if (_depth == "MIN")
 
-                    }, 250);
+               {
 
+                  var n = 0;
+                   _frameprogress = 0;
+                   fixinterval = setInterval(function () {
 
-                }
+                       if (n <= _latlengRoute.length - 1) {
+                           self.fixingRoute(_latlengRoute[n]);
 
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengRoute.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n=n+5;
 
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
 
-            }
 
+                       }
 
 
-        });
+                       else {
+                           clearInterval(fixinterval);
 
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
 
+                   }, 100);
+
+
+               }
+
+           });
+
+       }
+
+
+       //POLYLINE
+
+        else {
+
+           var counter = 0;
+           var step = 4;
+
+           for (var n = 0;n<= _polilyne.length-2;n++)
+
+           {
+               var dist = distance(_polilyne[n], _polilyne[n+1]);
+               var div = dist / step;
+
+               var bearing = self.getBearing(_polilyne[n],_polilyne[n+1]);
+
+               for (x = 0; x <= div; x++) {
+
+                   _latlengPath[counter] = self.destinationPoint(_polilyne[n], bearing, (step * x));
+                   counter++;
+
+
+               }
+
+           }
+
+
+
+           if (_depth == "FULL") {
+
+
+                   n = 0;
+                   _frameprogress = 0;
+
+                   fixinterval = setInterval(function () {
+
+                       if (n <= _latlengPath.length - 1) {
+                           self.fixingRoute(_latlengPath[n]);
+
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengPath.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n++;
+
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
+
+
+                       }
+
+
+                       else {
+                           clearInterval(fixinterval);
+
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
+
+                   }, 100);
+
+
+               }
+               else if (_depth == "HALF")
+
+               {
+
+                   n = 0;
+                   _frameprogress = 0;
+                   fixinterval = setInterval(function () {
+
+                       if (n <= _latlengRoute.length - 1) {
+                           self.fixingRoute(_latlengRoute[n]);
+
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengRoute.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n++;
+
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
+
+
+                       }
+
+
+                       else {
+                           clearInterval(fixinterval);
+
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
+
+                   }, 100);
+
+
+               }
+               else if (_depth == "MIN")
+
+               {
+                   n = 0;
+                   _frameprogress = 0;
+                   fixinterval = setInterval(function () {
+
+                       if (n <= _latlengRoute.length - 1) {
+                           self.fixingRoute(_latlengRoute[n]);
+
+                           _latlengprogress = Math.round(((n + 1) * 100) / _latlengRoute.length);
+                           //  $('#debug').append('<p>Fixing route: '+ n);
+                           n=n+5;
+
+                           if (self.onProgress) {
+                               self.onProgress();
+                           }
+
+                       }
+                       else {
+                           clearInterval(fixinterval);
+
+                           if (self.onRendered) {
+                               self.onRendered();
+                           }
+                       }
+
+                   }, 100);
+               }
+       }
     }
 
 
@@ -246,7 +409,7 @@ PANOROUTEF.LapseLoader = function (parameters) {
     this.response( _parameters.map || 'none');
 
 
-
+    //On progress state rendering route
     this.getProgress = function(){
 
         var objProgress = {
@@ -254,37 +417,31 @@ PANOROUTEF.LapseLoader = function (parameters) {
             latlengprogress: _latlengprogress,
             latlngPath: _latlengPath[_latlengprogress-2],
             latlngFrame: latlengFixed[_frameprogress-2],
+            distancekm: _distancekm
+
 
 
 
         };
-
         return objProgress;
-
-
     };
 
-
+    //On rendered route
     this.getRendered = function(){
 
         var objRendered = {
 
             latlngFrame: latlengFixed,
             panoramaId: panoramaId
-
-
-
         };
 
         return objRendered;
-
-
     };
 
 
 
 
-
+    //Bearing between two coordinates on a geospherical map
 
     this.getBearing = function (startLatLen,endLatLen){
         startLat = Math.toRadians(startLatLen.lat());
@@ -306,10 +463,12 @@ PANOROUTEF.LapseLoader = function (parameters) {
     }
 
 
+    //Distance between two coordinates
     function distance  (p1, p2){
         return (google.maps.geometry.spherical.computeDistanceBetween(p1, p2)).toFixed(2);
     }
 
+    // Next coordinates on a given direction at a certain distance
     this.destinationPoint  = function (latlng, bearing, distance) {
 
         var alpha1 = Math.toRadians(latlng.lat());
@@ -318,12 +477,10 @@ PANOROUTEF.LapseLoader = function (parameters) {
         var d  = distance;
         var brng = Math.toRadians(bearing);
         var nlatlng;
-        
 
-        var alpha2 = Math.asin( Math.sin(alpha1)*Math.cos(d/R) +
-        Math.cos(alpha1)*Math.sin(d/R)*Math.cos(brng) );
-        var delta2 = delta1 + Math.atan2(Math.sin(brng)*Math.sin(d/R)*Math.cos(alpha1),
-                Math.cos(d/R)-Math.sin(alpha1)*Math.sin(alpha2));
+
+        var alpha2 = Math.asin( Math.sin(alpha1)*Math.cos(d/R) + Math.cos(alpha1)*Math.sin(d/R)*Math.cos(brng) );
+        var delta2 = delta1 + Math.atan2(Math.sin(brng)*Math.sin(d/R)*Math.cos(alpha1), Math.cos(d/R)-Math.sin(alpha1)*Math.sin(alpha2));
 
 
 
@@ -335,6 +492,7 @@ PANOROUTEF.LapseLoader = function (parameters) {
 
     }
 
+    //Degrees to Rad and viceversa
     Math.toDegrees = function(rad)
     {
         return rad*(180/Math.PI);
@@ -347,11 +505,10 @@ PANOROUTEF.LapseLoader = function (parameters) {
 
 
 
-
-
+   //Find panoramic view on a route on a range of 5 meters
    this.fixingRoute = function (latlenfix) {
 
-        sv.getPanorama({location: latlenfix, radius: 20}, processSVData);
+        sv.getPanorama({location: latlenfix, radius: 5}, processSVData);
 
 
     }
@@ -363,47 +520,24 @@ PANOROUTEF.LapseLoader = function (parameters) {
 
            if(onduplicate(latlengFixed,data.location.latLng) == null) {
 
-
-
-                latlengFixed.push(data.location.latLng);
+               latlengFixed.push(data.location.latLng);
                panoramaId.push(data.location.pano);
-
-
-                _frameprogress = latlengFixed.length+1;
-
-
-
-
-
-
-
-
-
-            }
-
-
-
+               _frameprogress = latlengFixed.length+1;
+           }
         } else {
-
-
-
             console.error('Street View data not found for this location.');
         }
     }
 
     function onduplicate(arr, obj) {
 
-
-
-       for (n=0;n<=arr.length-1;n++)
+        for (var n=0;n<=arr.length-1;n++)
        {
            if (arr[n].lat() == obj.lat() && arr[n].lng() == obj.lng() ) return n;
 
 
        }
         return null;
-
-
     }
 
 }
