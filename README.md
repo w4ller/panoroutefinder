@@ -48,8 +48,8 @@ Remember that you'll need google.maps API, so don't forget this script tag.
 
 ##### Events
 
- * `panorf.onProgress ( pano )` When a route has been added and it's looking for SV Panoramas
- * `panorama.onRendered ( location, status )` When the road has been fool scaned for Panoramas
+ * `panorf.onProgress ()` When a route has been added and it's looking for SV Panoramas
+ * `panorama.onRendered ()` When the road has been fool scaned for Panoramas
  
 
 
